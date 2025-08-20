@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桃園市公車qrcode問卷分析系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .label {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+        
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease;
+        }
+        
+        .chart-container h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .controls h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group label {
+            color: #666;
+            font-weight: bold;
+        }
+        
+        .control-group select,
+        .control-group input {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+            min-width: 150px;
+        }
+        
+        .control-group input[type="date"] {
+            min-width: 160px;
+        }
+        
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .data-table {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+        
+        .data-table h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        
+        .file-upload {
+            margin-bottom: 30px;
+            padding: 30px;
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            text-align: center;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        
+        .file-upload label {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .file-upload label:hover {
+            transform: scale(1.05);
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .satisfaction-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .satisfaction-good {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .satisfaction-medium {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .satisfaction-bad {
+            background: #f44336;
+            color: white;
+        }
+        
+        /* PDF 匯出優化：避免切開圖表、讓資料表換頁 */
+        .chart-container {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .data-table {
+            break-before: page;
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚌 桃園市公車乘客滿意度分析系統</h1>
+            <p>即時掌握乘客回饋，優化公車服務品質</p>
+        </div>
+        
+        <div class="file-upload">
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            <label for="fileInput">📁 上傳Excel檔案</label>
+            <p style="margin-top: 15px; color: #666;">請上傳桃園市公車滿意度調查Excel檔案</p>
+        </div>
+        
+        <div id="content" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>總問卷數</h3>
+                    <div class="value" id="totalResponses">0</div>
+                    <div class="label">份有效問卷</div>
+                </div>
+                <div class="stat-card">
+                    <h3>平均滿意度</h3>
+                    <div class="value" id="avgSatisfaction">0%</div>
+                    <div class="label">整體評價</div>
+                </div>
+                <div class="stat-card">
+                    <h3>APP使用率</h3>
+                    <div class="value" id="appUsageRate">0%</div>
+                    <div class="label">數位化程度</div>
+                </div>
+                <div class="stat-card">
+                    <h3>每日搭乘率</h3>
+                    <div class="value" id="dailyRidership">0%</div>
+                    <div class="label">高頻使用者</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <h2>📊 資料篩選與分析</h2>
+                <div class="control-group">
+                    <label>路線篩選：</label>
+                    <select id="routeFilter">
+                        <option value="all">所有路線</option>
+                    </select>
+                    
+                    <label>日期範圍：</label>
+                    <input type="date" id="startDate" title="開始日期">
+                    <span style="margin: 0 10px;">至</span>
+                    <input type="date" id="endDate" title="結束日期">
+                    
+                    <label>時段篩選：</label>
+                    <select id="timeFilter">
+                        <option value="all">全部時段</option>
+                        <option value="morning">上午 (06:00-12:00)</option>
+                        <option value="afternoon">下午 (12:00-18:00)</option>
+                        <option value="evening">晚上 (18:00-24:00)</option>
+                    </select>
+                    
+                    <label>資料筆數：</label>
+                    <select id="rowsPerPage" title="每頁顯示筆數">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="all">全部</option>
+                    </select>
+                    
+                    <button class="btn" onclick="updateCharts()">更新圖表</button>
+                    <button class="btn" onclick="exportReport()">匯出報告</button>
+                </div>
+            </div>
+            
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h2>📈 整體滿意度分布</h2>
+                    <canvas id="satisfactionChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>🕐 填寫時機分析</h2>
+                    <canvas id="timingChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>🎯 搭乘目的統計</h2>
+                    <canvas id="purposeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>📱 各項滿意度比較</h2>
+                    <canvas id="detailedSatisfactionChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="data-table">
+                <h2>📋 詳細資料表</h2>
+                <div id="tableToolbar" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
+                    <div id="tableInfo" style="color:#555;">顯示 0–0 / 共 0 筆</div>
+                    <div style="display:flex; gap:8px;">
+                        <button id="prevPage" class="btn" style="padding:8px 16px;">上一頁</button>
+                        <button id="nextPage" class="btn" style="padding:8px 16px;">下一頁</button>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>填寫時機</th>
+                                <th>站位名稱</th>
+                                <th>路線</th>
+                                <th>整體滿意度</th>
+                                <th>搭乘頻率</th>
+                                <th>搭乘目的</th>
+                                <th>建議事項</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <h2>⏳ 正在載入資料...</h2>
+        </div>
+    </div>
+    
+    <script>
+        let rawData = [];
+        let charts = {};
+        let currentPage = 1;
+        
+        // 在DOM載入完成後綁定事件
+        // 啟用 Chart.js 資料標籤外掛，並設定全域預設樣式（美觀：對比色、圓角膠囊底、陰影）
+        if (window.Chart && window.ChartDataLabels) {
+            // === Datalabel helpers for contrast-aware styling ===
+            const parseColor = (c) => {
+                if (!c) return null;
+                if (Array.isArray(c)) return c; // dataset can be array per item
+                return c;
+            };
+            const hexToRgb = (hex) => {
+                if (!hex) return null;
+                let h = hex.replace('#', '').trim();
+                if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+                if (h.length !== 6) return null;
+                const num = parseInt(h, 16);
+                return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+            };
+            const cssToRgb = (css) => {
+                if (!css) return null;
+                // rgb(a) or hex
+                if (css.startsWith('#')) return hexToRgb(css);
+                const m = css.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+                if (!m) return null;
+                return { r: +m[1], g: +m[2], b: +m[3] };
+            };
+            const luminance = ({ r, g, b }) => {
+                const srgb = [r, g, b].map(v => {
+                    v /= 255;
+                    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                });
+                return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+            };
+            const getContrastText = (bgColor) => {
+                const rgb = cssToRgb(bgColor);
+                if (!rgb) return '#111';
+                const L = luminance(rgb);
+                return L > 0.5 ? '#111' : '#fff';
+            };
+            const getDatasetBgAt = (ctx) => {
+                const ds = ctx.dataset;
+                const idx = ctx.dataIndex ?? 0;
+                const bg = parseColor(ds && ds.backgroundColor);
+                if (!bg) return null;
+                return Array.isArray(bg) ? bg[idx % bg.length] : bg;
+            };
+
+            Chart.register(window.ChartDataLabels);
+            Chart.defaults.plugins.datalabels = {
+                // 色彩：依圖表與底色自動對比
+                color: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    if (type === 'bar') return '#fff';
+                    const bg = getDatasetBgAt(ctx);
+                    // 若使用白色膠囊底，內文字用深色
+                    return (type === 'pie' || type === 'doughnut') ? '#111' : (getContrastText(bg) || '#333');
+                },
+                backgroundColor: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    if (type === 'bar') return 'rgba(51, 65, 85, 0.85)'; // slate-700 ~ 深色膠囊
+                    if (type === 'pie' || type === 'doughnut') return 'rgba(255,255,255,0.88)'; // 白色膠囊，與扇形分離
+                    return 'rgba(51, 65, 85, 0.75)';
+                },
+                borderRadius: 6,
+                padding: { top: 4, right: 6, bottom: 4, left: 6 },
+                // 輕微描邊，提升對比
+                textStrokeColor: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    return (type === 'bar') ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.2)';
+                },
+                textStrokeWidth: 2,
+                font: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    return {
+                        weight: '600',
+                        size: (type === 'pie' || type === 'doughnut') ? 14 : 12,
+                        family: 'Microsoft JhengHei, system-ui, -apple-system, Segoe UI, Roboto, Arial'
+                    };
+                },
+                anchor: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    if (type === 'bar') return 'end';
+                    return 'center';
+                },
+                align: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    if (type === 'bar') return 'end';
+                    return 'center';
+                },
+                offset: (ctx) => {
+                    const type = ctx.chart.config.type;
+                    return (type === 'bar') ? 6 : 0;
+                },
+                clamp: true,
+                clip: false,
+                formatter: (value, ctx) => {
+                    const type = ctx.chart.config.type;
+                    if (type === 'pie' || type === 'doughnut') {
+                        const data = ctx.chart.data.datasets[0]?.data || [];
+                        const sum = data.reduce((a, b) => a + (typeof b === 'number' ? b : parseFloat(b) || 0), 0);
+                        const pct = sum ? (value / sum * 100).toFixed(1) + '%' : '0%';
+                        return `${value} (${pct})`;
+                    }
+                    return `${value}`;
+                }
+            };
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // 如果有上傳的檔案，自動讀取
+            if (window.fs && window.fs.readFile) {
+                loadDemoData();
+            }
+            
+            // 監聽資料筆數選擇變更
+            const rowsSelect = document.getElementById('rowsPerPage');
+            if (rowsSelect) {
+                // 從 localStorage 還原選擇
+                const savedRows = localStorage.getItem('rowsPerPage');
+                if (savedRows) {
+                    rowsSelect.value = savedRows;
+                }
+                rowsSelect.addEventListener('change', function() {
+                    localStorage.setItem('rowsPerPage', rowsSelect.value);
+                    currentPage = 1;
+                    updateDataTable();
+                });
+            }
+            
+            // 分頁按鈕事件
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            if (prevBtn && nextBtn) {
+                prevBtn.addEventListener('click', function() {
+                    currentPage = Math.max(1, currentPage - 1);
+                    updateDataTable();
+                });
+                nextBtn.addEventListener('click', function() {
+                    currentPage = currentPage + 1; // 實際上會在 updateDataTable 裡被上限保護
+                    updateDataTable();
+                });
+            }
+        });
+        
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                rawData = XLSX.utils.sheet_to_json(firstSheet);
+                
+                processData();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function processData() {
+            // 更新統計卡片
+            updateStatCards();
+            
+            // 更新路線選項
+            updateRouteFilter();
+            
+            // 初始化圖表
+            initCharts();
+            
+            // 更新資料表
+            updateDataTable();
+        }
+        
+        function updateStatCards() {
+            // 總問卷數
+            document.getElementById('totalResponses').textContent = rawData.length;
+            
+            // 計算平均滿意度
+            const satisfactionMap = {
+                '非常滿意': 5,
+                '滿意': 4,
+                '普通': 3,
+                '不滿意': 2,
+                '非常不滿意': 1
+            };
+            
+            let totalScore = 0;
+            let validCount = 0;
+            rawData.forEach(row => {
+                const satisfaction = row['請問您對於以下項目的滿意度 - (6)整體滿意度'];
+                if (satisfactionMap[satisfaction]) {
+                    totalScore += satisfactionMap[satisfaction];
+                    validCount++;
+                }
+            });
+            
+            const avgScore = validCount > 0 ? (totalScore / validCount / 5 * 100).toFixed(1) : 0;
+            document.getElementById('avgSatisfaction').textContent = avgScore + '%';
+            
+            // APP使用率
+            const appUsers = rawData.filter(row => row['您本次乘車是否有使用官方「桃園公車」APP？'] === '有使用').length;
+            const appUsageRate = rawData.length > 0 ? ((appUsers / rawData.length) * 100).toFixed(1) : 0;
+            document.getElementById('appUsageRate').textContent = appUsageRate + '%';
+            
+            // 每日搭乘率
+            const dailyRiders = rawData.filter(row => row['您搭乘公車的頻率'] === '每天搭乘').length;
+            const dailyRate = rawData.length > 0 ? ((dailyRiders / rawData.length) * 100).toFixed(1) : 0;
+            document.getElementById('dailyRidership').textContent = dailyRate + '%';
+        }
+        
+        function updateRouteFilter() {
+            const routes = [...new Set(rawData.map(row => row['您本次的搭乘路線']).filter(r => r))];
+            const select = document.getElementById('routeFilter');
+            select.innerHTML = '<option value="all">所有路線</option>';
+            routes.sort().forEach(route => {
+                const option = document.createElement('option');
+                option.value = route;
+                option.textContent = route;
+                select.appendChild(option);
+            });
+        }
+        
+        function initCharts() {
+            // 銷毀現有圖表
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // 整體滿意度圓餅圖
+            const satisfactionCounts = {};
+            rawData.forEach(row => {
+                const satisfaction = row['請問您對於以下項目的滿意度 - (6)整體滿意度'];
+                if (satisfaction) {
+                    satisfactionCounts[satisfaction] = (satisfactionCounts[satisfaction] || 0) + 1;
+                }
+            });
+            
+            const ctx1 = document.getElementById('satisfactionChart').getContext('2d');
+            charts.satisfaction = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(satisfactionCounts),
+                    datasets: [{
+                        data: Object.values(satisfactionCounts),
+                        backgroundColor: [
+                            '#4caf50',
+                            '#8bc34a',
+                            '#ffeb3b',
+                            '#ff9800',
+                            '#f44336'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 填寫時機分析
+            const timingCounts = {};
+            rawData.forEach(row => {
+                const timing = row['請問您在何時填寫本問卷'];
+                if (timing) {
+                    timingCounts[timing] = (timingCounts[timing] || 0) + 1;
+                }
+            });
+            
+            const ctx2 = document.getElementById('timingChart').getContext('2d');
+            charts.timing = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(timingCounts),
+                    datasets: [{
+                        label: '問卷數量',
+                        data: Object.values(timingCounts),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // 搭乘目的統計
+            const purposeCounts = {};
+            rawData.forEach(row => {
+                let purpose = row['您搭乘公車的目的'];
+                if (purpose) {
+                    // 簡化其他類別
+                    if (purpose.startsWith('其他-')) {
+                        purpose = '其他';
+                    }
+                    purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
+                }
+            });
+            
+            // 排序並取前10個
+            const sortedPurposes = Object.entries(purposeCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            const ctx3 = document.getElementById('purposeChart').getContext('2d');
+            charts.purpose = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: sortedPurposes.map(p => p[0]),
+                    datasets: [{
+                        label: '人數',
+                        data: sortedPurposes.map(p => p[1]),
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        // 針對橫向長條指定資料標籤在棒內右側，避免超出
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'right',
+                            offset: -4, // 往內縮，避免超出圖域
+                            clamp: true,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            // 預留 15% 空間避免資料標籤溢出
+                            suggestedMax: (function(){
+                                const max = Math.max(0, ...sortedPurposes.map(p=>p[1]));
+                                return max ? Math.ceil(max * 1.15) : 5;
+                            })()
+                        }
+                    }
+                }
+            });
+            
+            // 各項滿意度比較雷達圖
+            const satisfactionItems = [
+                '(1)預估到站時間',
+                '(2)候車設施(站牌、座椅)情形',
+                '(3)候車環境整潔情形',
+                '(4)車輛整潔情形',
+                '(5)駕駛員服務態度',
+                '(6)整體滿意度'
+            ];
+            
+            const satisfactionScores = satisfactionItems.map(item => {
+                const fullKey = '請問您對於以下項目的滿意度 - ' + item;
+                let totalScore = 0;
+                let count = 0;
+                
+                const scoreMap = {
+                    '非常滿意': 5,
+                    '滿意': 4,
+                    '普通': 3,
+                    '不滿意': 2,
+                    '非常不滿意': 1
+                };
+                
+                rawData.forEach(row => {
+                    const value = row[fullKey];
+                    if (scoreMap[value]) {
+                        totalScore += scoreMap[value];
+                        count++;
+                    }
+                });
+                
+                return count > 0 ? (totalScore / count).toFixed(2) : 0;
+            });
+            
+            const ctx4 = document.getElementById('detailedSatisfactionChart').getContext('2d');
+            charts.detailedSatisfaction = new Chart(ctx4, {
+                type: 'radar',
+                data: {
+                    labels: satisfactionItems.map(item => item.replace(/\(\d\)/, '')),
+                    datasets: [{
+                        label: '平均滿意度分數',
+                        data: satisfactionScores,
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(102, 126, 234, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            pointLabels: {
+                                color: '#333',
+                                padding: 8,
+                                font: {
+                                    size: 16,
+                                    weight: '600',
+                                    family: 'Microsoft JhengHei, system-ui, -apple-system, Segoe UI, Roboto, Arial'
+                                }
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                backdropColor: 'transparent',
+                                color: '#666',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 取得依當前條件篩選後的資料（路線、日期「填答時間」、時段）
+        function getFilteredData() {
+            const routeFilter = document.getElementById('routeFilter')?.value || 'all';
+            const timeFilter = document.getElementById('timeFilter')?.value || 'all';
+            const startDate = document.getElementById('startDate')?.value || '';
+            const endDate = document.getElementById('endDate')?.value || '';
+
+            let filteredData = [...rawData];
+
+            // 路線篩選
+            if (routeFilter !== 'all') {
+                filteredData = filteredData.filter(row => row['您本次的搭乘路線'] === routeFilter);
+            }
+
+            // 日期範圍（以「填答時間」欄位）
+            if (startDate || endDate) {
+                filteredData = filteredData.filter(row => {
+                    const dateStr = row['填答時間'];
+                    if (!dateStr) return true;
+                    let rowDate;
+                    try {
+                        if (dateStr.includes('上午') || dateStr.includes('下午')) {
+                            const datePart = dateStr.split(' ')[0];
+                            const parts = datePart.split('/');
+                            if (parts.length >= 3) {
+                                rowDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                            }
+                        } else if (dateStr.includes('/')) {
+                            const parts = dateStr.split(' ')[0].split('/');
+                            if (parts.length >= 3) {
+                                rowDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                            }
+                        } else if (dateStr.includes('-')) {
+                            rowDate = new Date(dateStr.split(' ')[0]);
+                        } else {
+                            rowDate = new Date(dateStr);
+                        }
+                        if (isNaN(rowDate.getTime())) return true;
+                        const rowDateStr = rowDate.toISOString().split('T')[0];
+                        if (startDate && rowDateStr < startDate) return false;
+                        if (endDate && rowDateStr > endDate) return false;
+                        return true;
+                    } catch {
+                        return true;
+                    }
+                });
+            }
+
+            // 時段篩選（依搭乘班次時間）
+            if (timeFilter !== 'all') {
+                filteredData = filteredData.filter(row => {
+                    const time = row['您本次的搭乘班次'];
+                    if (!time) return false;
+                    const hourMatch = time.match(/(\d{1,2})[:：]/);
+                    if (!hourMatch) return false;
+                    const hour = parseInt(hourMatch[1]);
+                    switch (timeFilter) {
+                        case 'morning':
+                            return hour >= 6 && hour < 12;
+                        case 'afternoon':
+                            return hour >= 12 && hour < 18;
+                        case 'evening':
+                            return hour >= 18 || hour < 6;
+                        default:
+                            return true;
+                    }
+                });
+            }
+
+            return filteredData;
+        }
+
+        function updateDataTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            // 依當前篩選 + 分頁 顯示
+            const rowsValue = (document.getElementById('rowsPerPage') && document.getElementById('rowsPerPage').value) ? document.getElementById('rowsPerPage').value : '50';
+            const sourceData = getFilteredData();
+            const total = sourceData.length;
+            const n = rowsValue === 'all' ? total : (parseInt(rowsValue, 10) || 50);
+            const totalPages = n === 0 ? 1 : Math.max(1, Math.ceil(total / (rowsValue === 'all' ? total || 1 : n)));
+            
+            // 修正 currentPage 邊界
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            
+            const startIndex = rowsValue === 'all' ? 0 : (currentPage - 1) * n;
+            const endIndex = rowsValue === 'all' ? total : Math.min(startIndex + n, total);
+            const displayData = sourceData.slice(startIndex, endIndex);
+            
+            // 更新資訊與按鈕狀態
+            const info = document.getElementById('tableInfo');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            if (info) {
+                const from = total === 0 ? 0 : (startIndex + 1);
+                const to = endIndex;
+                info.textContent = `顯示 ${from}–${to} / 共 ${total} 筆`;
+            }
+            if (prevBtn && nextBtn) {
+                if (rowsValue === 'all' || total <= n) {
+                    prevBtn.disabled = true;
+                    nextBtn.disabled = true;
+                    prevBtn.style.opacity = '0.6';
+                    nextBtn.style.opacity = '0.6';
+                } else {
+                    prevBtn.disabled = currentPage <= 1;
+                    nextBtn.disabled = currentPage >= totalPages;
+                    prevBtn.style.opacity = prevBtn.disabled ? '0.6' : '1';
+                    nextBtn.style.opacity = nextBtn.disabled ? '0.6' : '1';
+                }
+            }
+            
+            displayData.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                const satisfaction = row['請問您對於以下項目的滿意度 - (6)整體滿意度'];
+                let satisfactionClass = 'satisfaction-medium';
+                if (satisfaction === '非常滿意' || satisfaction === '滿意') {
+                    satisfactionClass = 'satisfaction-good';
+                } else if (satisfaction === '不滿意' || satisfaction === '非常不滿意') {
+                    satisfactionClass = 'satisfaction-bad';
+                }
+                
+                tr.innerHTML = `
+                    <td>${row['請問您在何時填寫本問卷'] || '-'}</td>
+                    <td>${row['您本次掃描QR CODE的站位名稱'] || '-'}</td>
+                    <td>${row['您本次的搭乘路線'] || '-'}</td>
+                    <td><span class="${satisfactionClass} satisfaction-indicator">${satisfaction || '-'}</span></td>
+                    <td>${row['您搭乘公車的頻率'] || '-'}</td>
+                    <td>${row['您搭乘公車的目的'] || '-'}</td>
+                    <td>${row['其他建議'] || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function updateCharts() {
+            // 變更篩選時，重置到第一頁
+            currentPage = 1;
+            // 記錄目前條件，方便除錯
+            const debug = {
+                routeFilter: document.getElementById('routeFilter')?.value,
+                timeFilter: document.getElementById('timeFilter')?.value,
+                startDate: document.getElementById('startDate')?.value,
+                endDate: document.getElementById('endDate')?.value,
+            };
+            console.log('篩選條件:', debug);
+            if (rawData.length > 0) console.log('可用的欄位名稱:', Object.keys(rawData[0]));
+
+            const filteredData = getFilteredData();
+            
+            // 更新圖表資料
+            if (filteredData.length > 0) {
+                // 更新滿意度圖表
+                const satisfactionCounts = {};
+                filteredData.forEach(row => {
+                    const satisfaction = row['請問您對於以下項目的滿意度 - (6)整體滿意度'];
+                    if (satisfaction) {
+                        satisfactionCounts[satisfaction] = (satisfactionCounts[satisfaction] || 0) + 1;
+                    }
+                });
+                
+                charts.satisfaction.data.labels = Object.keys(satisfactionCounts);
+                charts.satisfaction.data.datasets[0].data = Object.values(satisfactionCounts);
+                charts.satisfaction.update();
+                
+                // 更新時機圖表
+                const timingCounts = {};
+                filteredData.forEach(row => {
+                    const timing = row['請問您在何時填寫本問卷'];
+                    if (timing) {
+                        timingCounts[timing] = (timingCounts[timing] || 0) + 1;
+                    }
+                });
+                
+                charts.timing.data.labels = Object.keys(timingCounts);
+                charts.timing.data.datasets[0].data = Object.values(timingCounts);
+                charts.timing.update();
+                
+                // 更新搭乘目的圖表（合併「其他-」至「其他」，排序取前10）
+                const purposeCounts = {};
+                filteredData.forEach(row => {
+                    let purpose = row['您搭乘公車的目的'];
+                    if (purpose) {
+                        if (typeof purpose === 'string' && purpose.startsWith('其他-')) {
+                            purpose = '其他';
+                        }
+                        purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
+                    }
+                });
+                const sortedPurposes = Object.entries(purposeCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10);
+                charts.purpose.data.labels = sortedPurposes.map(p => p[0]);
+                charts.purpose.data.datasets[0].data = sortedPurposes.map(p => p[1]);
+                // 動態調整 X 軸上限，避免資料標籤超出圖域
+                if (charts.purpose.options && charts.purpose.options.scales && charts.purpose.options.scales.x) {
+                    const max = Math.max(0, ...sortedPurposes.map(p=>p[1]));
+                    charts.purpose.options.scales.x.suggestedMax = max ? Math.ceil(max * 1.15) : 5;
+                }
+                charts.purpose.update();
+                
+                // 更新各項滿意度比較雷達圖（以篩選資料計算平均分數）
+                const satisfactionItems = [
+                    '(1)預估到站時間',
+                    '(2)候車設施(站牌、座椅)情形',
+                    '(3)候車環境整潔情形',
+                    '(4)車輛整潔情形',
+                    '(5)駕駛員服務態度',
+                    '(6)整體滿意度'
+                ];
+                const scoreMap = {
+                    '非常滿意': 5,
+                    '滿意': 4,
+                    '普通': 3,
+                    '不滿意': 2,
+                    '非常不滿意': 1
+                };
+                const filtScores = satisfactionItems.map(item => {
+                    const key = '請問您對於以下項目的滿意度 - ' + item;
+                    let sum = 0, cnt = 0;
+                    filteredData.forEach(row => {
+                        const v = row[key];
+                        if (scoreMap[v]) { sum += scoreMap[v]; cnt++; }
+                    });
+                    return cnt > 0 ? (sum / cnt).toFixed(2) : 0;
+                });
+                charts.detailedSatisfaction.data.labels = satisfactionItems.map(item => item.replace(/\(\d\)/, ''));
+                charts.detailedSatisfaction.data.datasets[0].data = filtScores;
+                charts.detailedSatisfaction.update();
+                
+                alert(`已篩選 ${filteredData.length} 筆資料並更新圖表`);
+            } else {
+                alert('篩選條件無符合資料');
+            }
+            
+            // 同步更新表格顯示
+            updateDataTable();
+        }
+        
+        async function exportReport() {
+            try {
+                if (!rawData || rawData.length === 0) {
+                    alert('沒有可匯出的資料，請先上傳或載入資料');
+                    return;
+                }
+
+                const wb = XLSX.utils.book_new();
+                const now = new Date();
+                const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+                const filtered = getFilteredData();
+
+                // 欄位鍵名
+                const KEY = {
+                    route: '您本次的搭乘路線',
+                    timing: '請問您在何時填寫本問卷',
+                    stop: '您本次掃描QR CODE的站位名稱',
+                    overallSat: '請問您對於以下項目的滿意度 - (6)整體滿意度',
+                    freq: '您搭乘公車的頻率',
+                    purpose: '您搭乘公車的目的',
+                    advice: '其他建議',
+                    timeStr: '搭乘班次',
+                    filledAt: '填答時間'
+                };
+
+                const scoreMap = { '非常滿意': 5, '滿意': 4, '普通': 3, '不滿意': 2, '非常不滿意': 1 };
+                const satisfactionItems = [
+                    '(1)司機服務態度','(2)行車安全與舒適性','(3)發車準點率','(4)候車資訊提供','(5)票價與轉乘','(6)整體滿意度'
+                ];
+
+                const getAvgSat = (data) => {
+                    let total=0, cnt=0; data.forEach(r=>{ const v=r[KEY.overallSat]; if (scoreMap[v]){ total+=scoreMap[v]; cnt++; }}); return cnt? (total/cnt): 0;
+                };
+                const percent = (a,b)=> b? (a/b*100).toFixed(1)+'%':'0%';
+                const countBy = (data, key)=>{ const m={}; data.forEach(r=>{ const v=r[key]; if(v) m[v]=(m[v]||0)+1;}); return m; };
+                const satAvgByRoute = (data)=>{
+                    const m={}; data.forEach(r=>{ const route=r[KEY.route]; const v=r[KEY.overallSat]; if(!route||!scoreMap[v]) return; if(!m[route]) m[route]={sum:0,cnt:0}; m[route].sum+=scoreMap[v]; m[route].cnt++; }); return m; };
+                const hourBucket = (r)=>{
+                    // 1) 優先從「搭乘班次」抓小時
+                    let text = r[KEY.timeStr];
+                    let hour = null;
+                    if (text && typeof text === 'string') {
+                        const m = text.match(/(\d{1,2})[：:]/);
+                        if (m) hour = parseInt(m[1]);
+                    }
+                    // 2) 若沒有，嘗試從「填答時間」解析
+                    if (hour === null) {
+                        const ts = r[KEY.filledAt];
+                        if (ts) {
+                            const d = new Date(ts.replace(/\./g,'/').replace(/年|月/g,'/').replace('日',''));
+                            if (!isNaN(d.getTime())) hour = d.getHours();
+                        }
+                    }
+                    if (hour === null || isNaN(hour)) return '未填';
+                    if (hour>=6 && hour<12) return '上午(06-12)';
+                    if (hour>=12 && hour<18) return '下午(12-18)';
+                    return '晚上(18-06)';
+                };
+
+                // 1) 匯出資訊與當前篩選摘要
+                const filterRoute = document.getElementById('routeFilter')?.value || 'all';
+                const filterTime = document.getElementById('timeFilter')?.value || 'all';
+                const startDate = document.getElementById('startDate')?.value || '';
+                const endDate = document.getElementById('endDate')?.value || '';
+
+                const summaryAOA = [
+                    ['桃園市公車乘客滿意度 - 匯出摘要'],
+                    ['匯出時間', ts],
+                    [],
+                    ['目前篩選條件'],
+                    ['路線', filterRoute],
+                    ['時段', filterTime],
+                    ['日期範圍', startDate && endDate ? `${startDate} ~ ${endDate}` : (startDate||endDate||'未指定')],
+                    [],
+                    ['整體概覽 (全部資料)'],
+                    ['總問卷數', rawData.length],
+                    ['平均整體滿意度(1-5)', getAvgSat(rawData).toFixed(2)],
+                    ['APP使用率', percent(rawData.filter(r=>r['您本次乘車是否有使用官方「桃園公車」APP？']==='有使用').length, rawData.length)],
+                    ['每日搭乘率', percent(rawData.filter(r=>r[KEY.freq]==='每天搭乘').length, rawData.length)],
+                    [],
+                    ['目前篩選後概覽'],
+                    ['總問卷數', filtered.length],
+                    ['平均整體滿意度(1-5)', getAvgSat(filtered).toFixed(2)],
+                    ['APP使用率', percent(filtered.filter(r=>r['您本次乘車是否有使用官方「桃園公車」APP？']==='有使用').length, filtered.length)],
+                    ['每日搭乘率', percent(filtered.filter(r=>r[KEY.freq]==='每天搭乘').length, filtered.length)],
+                ];
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryAOA), '匯出摘要');
+
+                // 2) 滿意度分布 (全部/篩選)
+                const satAll = countBy(rawData, KEY.overallSat);
+                const satFilt = countBy(filtered, KEY.overallSat);
+                const satRows = [['整體滿意度','全部數量','篩選後數量','全部占比','篩選占比']];
+                const allTotal = rawData.length || 1; const filtTotal = filtered.length || 1;
+                const allKeys = Array.from(new Set([...Object.keys(satAll), ...Object.keys(satFilt)]));
+                allKeys.forEach(k=>{
+                    const a = satAll[k]||0, f=satFilt[k]||0;
+                    satRows.push([k, a, f, percent(a, allTotal), percent(f, filtTotal)]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(satRows), '整體滿意度分布');
+
+                // 3) 各項滿意度平均 (全部/篩選)
+                const detailRows = [['項目','全部平均(1-5)','篩選平均(1-5)','全部樣本數','篩選樣本數']];
+                satisfactionItems.forEach(item=>{
+                    const key = '請問您對於以下項目的滿意度 - ' + item;
+                    let s1=0,c1=0; rawData.forEach(r=>{ const v=r[key]; if(scoreMap[v]){ s1+=scoreMap[v]; c1++; }});
+                    let s2=0,c2=0; filtered.forEach(r=>{ const v=r[key]; if(scoreMap[v]){ s2+=scoreMap[v]; c2++; }});
+                    detailRows.push([item, c1? (s1/c1).toFixed(2):'0.00', c2? (s2/c2).toFixed(2):'0.00', c1, c2]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), '各項滿意度平均');
+
+                // 4) 路線分析 (篩選後)
+                const routeCounts = countBy(filtered, KEY.route);
+                const routeSat = satAvgByRoute(filtered);
+                const routeRows = [['路線','筆數','平均整體滿意度(1-5)']];
+                Object.keys(routeCounts).sort().forEach(route=>{
+                    const info = routeSat[route] || {sum:0,cnt:0};
+                    const avg = info.cnt? (info.sum/info.cnt).toFixed(2):'0.00';
+                    routeRows.push([route, routeCounts[route], avg]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(routeRows), '路線分析(篩選)');
+
+                // 5) 時段分析 (依搭乘班次轉桶)
+                const bucketAll = {}; rawData.forEach(r=>{ const b=hourBucket(r); bucketAll[b]=(bucketAll[b]||0)+1;});
+                const bucketFil = {}; filtered.forEach(r=>{ const b=hourBucket(r); bucketFil[b]=(bucketFil[b]||0)+1;});
+                const timeRows = [['時段桶','全部數量','篩選後數量','全部占比','篩選占比']];
+                const fixedBuckets = ['上午(06-12)','下午(12-18)','晚上(18-06)','未填'];
+                fixedBuckets.forEach(k=>{
+                    const a=bucketAll[k]||0, f=bucketFil[k]||0;
+                    timeRows.push([k, a, f, percent(a, allTotal), percent(f, filtTotal)]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(timeRows), '時段分析');
+
+                // 6) 其他分布：填寫時機 / 搭乘頻率 / 搭乘目的 (全部/篩選)
+                const buildDistSheet = (title, key)=>{
+                    const aAll=countBy(rawData,key), aFil=countBy(filtered,key);
+                    const header=[[title],['選項','全部數量','篩選後數量','全部占比','篩選占比']];
+                    const keys=Array.from(new Set([...Object.keys(aAll),...Object.keys(aFil)]));
+                    const rows=[]; keys.forEach(k=>{ const a=aAll[k]||0,f=aFil[k]||0; rows.push([k,a,f,percent(a,allTotal),percent(f,filtTotal)]); });
+                    const ws=XLSX.utils.aoa_to_sheet([...header, ...rows]);
+                    XLSX.utils.book_append_sheet(wb, ws, title);
+                };
+                buildDistSheet('填寫時機分布', KEY.timing);
+                buildDistSheet('搭乘頻率分布', KEY.freq);
+                buildDistSheet('搭乘目的分布', KEY.purpose);
+
+                // 7) 目前篩選資料 & 全部原始資料
+                const wsFiltered = XLSX.utils.json_to_sheet(filtered);
+                XLSX.utils.book_append_sheet(wb, wsFiltered, '目前篩選資料');
+                const wsAll = XLSX.utils.json_to_sheet(rawData);
+                XLSX.utils.book_append_sheet(wb, wsAll, '原始資料(全部)');
+
+                // 寫檔
+                const fileName = `桃園市公車滿意度_分析報告_${now.toISOString().replace(/[:T]/g,'-').split('.')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                alert('Excel 報告已匯出完成');
+            } catch (e) {
+                console.error('Excel 匯出失敗:', e);
+                alert('Excel 匯出失敗，請稍後再試');
+            }
+        }
+        
+        async function loadDemoData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                
+                // 嘗試讀取上傳的檔案
+                const response = await window.fs.readFile('STANDARD_nOyK1_桃園市轄市區公車乘客滿意度問卷調查_202508190304_68a3e9c863b07.xlsx');
+                const workbook = XLSX.read(response, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                rawData = XLSX.utils.sheet_to_json(firstSheet);
+                
+                processData();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                console.log('請手動上傳檔案');
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
